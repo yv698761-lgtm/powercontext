@@ -56,6 +56,14 @@
         </div>
         <ol id="results" class="results"></ol>
         <div class="metrics" id="search-metrics"></div>
+        <details id="search-sql" class="sql" hidden>
+          <summary>seekdb 实际执行的语句（一条 SQL，库内 RRF 融合）</summary>
+          <code></code>
+        </details>
+        <div class="row">
+          <button id="prove-index" class="btn btn-ghost">查看索引与执行计划</button>
+        </div>
+        <pre id="index-proof" class="plan mono small" hidden></pre>
       </section>
     </main>
 

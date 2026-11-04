@@ -115,15 +115,67 @@ async function collectionFor(name, dimension) {
   return coll;
 }
 
+const RRF = { rankWindowSize: 40, rankConstant: 60 };
+// Candidates each branch may contribute before fusion. Keeping the two values
+// equal is what makes the fused ranks comparable across branches.
+const BRANCH_CANDIDATES = 40;
+
+// seekdb-js keeps a collection in `c$v2$<collection id>`; the id is stable for
+// the life of the collection, so the name survives restarts of this server.
+function collectionTable(coll, fallbackName) {
+  return coll?.collectionId ? `c$v2$${coll.collectionId}` : `c$v2$<collection:${fallbackName}>`;
+}
+
+// Renders the statement DBMS_HYBRID_SEARCH builds for this request. The SDK
+// sends this to seekdb as one statement; the server only echoes it so the UI
+// can show what actually ran instead of describing it from memory.
+//
+// The per-branch limits mirror the SDK exactly (fulltext: LIMIT 800, vector:
+// the knn nResults), which is what makes `scripts/explain-plan.py` and the
+// parity test agree with a real `hybridSearch`.
+const FULLTEXT_CANDIDATE_CAP = 800;
+
+function renderHybridSql({ table, vector, text, k }) {
+  const literal = (s) => `'${String(s).replace(/'/g, "''")}'`;
+  const vectorLiteral = JSON.stringify(vector);
+  const ftsBranch =
+    `(SELECT *, RANK() OVER (ORDER BY _keyword_score DESC) AS _keyword_rank FROM (` +
+    `SELECT _id, document, embedding, metadata, ` +
+    `MATCH(document) AGAINST (${literal(text)} IN NATURAL LANGUAGE MODE) AS _keyword_score ` +
+    `FROM ${table} WHERE MATCH(document) AGAINST (${literal(text)} IN NATURAL LANGUAGE MODE) ` +
+    `ORDER BY _keyword_score DESC LIMIT ${FULLTEXT_CANDIDATE_CAP}))`;
+  const vecBranch =
+    `(SELECT *, RANK() OVER (ORDER BY _semantic_score DESC) AS _semantic_rank FROM (` +
+    `SELECT _id, document, embedding, metadata, ` +
+    `COSINE_DISTANCE(embedding, '${vectorLiteral}') AS _distance, ` +
+    `ROUND(1 - COSINE_DISTANCE(embedding, '${vectorLiteral}') / 2, 8) AS _semantic_score ` +
+    `FROM ${table} ORDER BY _distance APPROXIMATE LIMIT ${BRANCH_CANDIDATES}))`;
+  const fusion =
+    `IFNULL(1 / (_fts._keyword_rank + ${RRF.rankConstant}), 0) + ` +
+    `IFNULL(1 / (_vs._semantic_rank + ${RRF.rankConstant}), 0)`;
+  return (
+    `SELECT IFNULL(_fts._id, _vs._id) AS _id, _fts.document, _fts.metadata, ${fusion} AS _score ` +
+    `FROM ${ftsBranch} _fts FULL JOIN ${vecBranch} _vs ON _fts._id = _vs._id ` +
+    `ORDER BY _score DESC LIMIT ${k}`
+  );
+}
+
 // One SQL statement per search: the full-text branch and the vector branch are
-// fused by the database with reciprocal rank fusion.
-async function hybridSearch({ collection, vector, text, k = 5, where }) {
+// joined and fused by seekdb itself with reciprocal rank fusion. The client
+// never receives the two branch lists separately.
+//
+// Metadata filtering is intentionally not exposed: seekdb-js 1.4.0 renders a
+// `where` clause as a bare column reference (`WHERE category = ...`) while the
+// collection keeps metadata in a JSON column, so the filter matches nothing and
+// the rows come from whichever branch was not filtered. Filtering would have to
+// go through `metadata->>'$.field'` in a statement we build ourselves.
+async function hybridSearch({ collection, vector, text, k = 5 }) {
   const coll = await collectionFor(collection, vector.length);
   const started = performance.now();
   const result = await coll.hybridSearch({
-    query: text ? { whereDocument: { $contains: text }, nResults: Math.max(k, 20) } : undefined,
-    knn: { queryEmbeddings: [vector], nResults: Math.max(k, 20), where },
-    rank: { rrf: { rankWindowSize: 40, rankConstant: 60 } },
+    query: text ? { whereDocument: { $contains: text }, nResults: BRANCH_CANDIDATES } : undefined,
+    knn: { queryEmbeddings: [vector], nResults: BRANCH_CANDIDATES },
+    rank: { rrf: { ...RRF } },
     nResults: k,
     include: ["documents", "metadatas", "distances"],
   });
@@ -135,10 +187,16 @@ async function hybridSearch({ collection, vector, text, k = 5, where }) {
       id: ids[i],
       text: result.documents?.[0]?.[i] ?? "",
       metadata: result.metadatas?.[0]?.[i] ?? {},
-      distance: result.distances?.[0]?.[i] ?? null,
+      // RRF fusion score, not a distance: higher is better.
+      score: result.distances?.[0]?.[i] ?? null,
     });
   }
-  return { hits, tookMs, sqlBacked: true };
+  return {
+    hits,
+    tookMs,
+    sql: renderHybridSql({ table: collectionTable(coll, collection), vector, text, k }),
+    rrf: RRF,
+  };
 }
 
 async function handleApi(req, res, pathname) {
@@ -180,6 +238,10 @@ async function handleApi(req, res, pathname) {
       written += slice.length;
     }
     const writeMs = performance.now() - started;
+    // Rows are searchable as soon as the batch is written; the refresh only
+    // rebuilds the index and costs ~200-800 ms, so it is done after the write
+    // completes and its cost is reported separately instead of being hidden in
+    // the ingest latency.
     const refreshStarted = performance.now();
     await coll.refresh_index();
     const refreshMs = performance.now() - refreshStarted;
@@ -195,6 +257,36 @@ async function handleApi(req, res, pathname) {
     }
     const out = await hybridSearch({ collection, vector, text, k: Number(k) || 5 });
     return sendJSON(res, 200, { ok: true, ...out });
+  }
+
+  if (pathname === "/api/explain") {
+    // Proves the hybrid statement is served by the native fulltext and vector
+    // indexes instead of scanning the collection table twice in application code.
+    // The plan itself is read with EXPLAIN on the same database and is also
+    // reported by `scripts/verify-native.py` in CI, where a MySQL client can run
+    // it; here the index metadata is what the running server can observe.
+    const body = await readJSON(req);
+    const { collection, vector, text, k } = body;
+    if (!collection || !Array.isArray(vector) || !vector.length || !text) {
+      return sendJSON(res, 400, { ok: false, error: "collection, vector and text are required" });
+    }
+    const coll = await collectionFor(collection, vector.length);
+    const table = collectionTable(coll, collection);
+    const sql = renderHybridSql({ table, vector, text, k: Number(k) || 5 });
+    try {
+      const indexes = await client.execute(`SHOW INDEX FROM \`${table}\``);
+      const byName = Object.fromEntries((indexes || []).map((row) => [row.Key_name, row.Index_type]));
+      return sendJSON(res, 200, {
+        ok: true,
+        sql,
+        table,
+        indexes: byName,
+        nativeFulltext: byName.idx_fts === "FULLTEXT",
+        nativeVector: byName.idx_vec === "VECTOR",
+      });
+    } catch (err) {
+      return sendJSON(res, 500, { ok: false, error: String(err?.message || err), sql });
+    }
   }
 
   if (pathname === "/api/count") {

@@ -4,6 +4,7 @@
 //
 //   node scripts/compare-precision.mjs
 import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
@@ -11,8 +12,24 @@ import puppeteer from "puppeteer-core";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const URL_BASE = process.env.KB_URL || "http://127.0.0.1:8787";
 
+// Same Chrome discovery as evaluate.mjs; override with CHROME_PATH.
+const CHROME = process.env.CHROME_PATH || defaultChrome();
+
+function defaultChrome() {
+  const candidates =
+    process.platform === "win32"
+      ? [
+          "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+          "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        ]
+      : process.platform === "darwin"
+        ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+        : ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
+  return candidates.find((path) => existsSync(path)) || candidates[0];
+}
+
 const browser = await puppeteer.launch({
-  executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  executablePath: CHROME,
   headless: true,
   protocolTimeout: 900000,
   args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-features=WebGPU", "--disable-gpu"],

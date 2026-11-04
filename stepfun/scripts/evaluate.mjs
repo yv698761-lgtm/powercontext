@@ -4,6 +4,7 @@
 //
 //   node scripts/evaluate.mjs [--url http://127.0.0.1:8787] [--chrome <path>]
 import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
@@ -16,9 +17,22 @@ const args = Object.fromEntries(
   }, []),
 );
 const URL_BASE = args.url || "http://127.0.0.1:8787";
-const CHROME =
-  args.chrome ||
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+// Default to this platform's usual Chrome location; override with --chrome or
+// CHROME_PATH when it lives elsewhere.
+const CHROME = args.chrome || process.env.CHROME_PATH || defaultChrome();
+
+function defaultChrome() {
+  const candidates =
+    process.platform === "win32"
+      ? [
+          "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+          "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        ]
+      : process.platform === "darwin"
+        ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+        : ["/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
+  return candidates.find((path) => existsSync(path)) || candidates[0];
+}
 // --wasm forces the fallback path: WebGPU is disabled in the browser profile.
 const FORCE_WASM = args.wasm === "true" || args.wasm === "1";
 const DTYPE = args.dtype || null;
@@ -115,6 +129,10 @@ const evaluation = await page.evaluate(async (queryList) => {
       hits,
       recallAt5: recall,
       ndcgAt5: idcg ? dcg / idcg : 0,
+      // reciprocal rank of the first relevant hit within the top 5
+      mrrAt5: gold.some((g) => hits.indexOf(g) >= 0 && hits.indexOf(g) < 5)
+        ? 1 / (Math.min(...gold.map((g) => (hits.indexOf(g) >= 0 ? hits.indexOf(g) : Infinity))) + 1)
+        : 0,
       embedMs: last.embedMs,
       dbMs: last.dbMs,
       sqlMs: last.sqlMs,
@@ -137,6 +155,7 @@ const summary = {
   queries: evaluation.length,
   recallAt5: evaluation.reduce((s, q) => s + q.recallAt5, 0) / evaluation.length,
   ndcgAt5: evaluation.reduce((s, q) => s + q.ndcgAt5, 0) / evaluation.length,
+  mrrAt5: evaluation.reduce((s, q) => s + q.mrrAt5, 0) / evaluation.length,
   medianQueryEmbedMs: median(evaluation.map((q) => q.embedMs)),
   medianHybridSearchMs: median(evaluation.map((q) => q.sqlMs)),
   medianEndToEndMs: median(evaluation.map((q) => q.e2eMs)),

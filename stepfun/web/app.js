@@ -235,6 +235,7 @@ async function search() {
     const e2eMs = performance.now() - started;
     state.metrics.searchMs = dbMs;
     state.metrics.e2eMs = e2eMs;
+    state.lastSql = data.sql || "";
     renderResults(data.hits);
     renderMetrics(el("search-metrics"), [
       ["查询向量化", `${embedMs.toFixed(1)} ms`],
@@ -242,12 +243,28 @@ async function search() {
       ["端到端", `${e2eMs.toFixed(1)} ms`],
       ["命中", `${data.hits.length} 条`],
     ]);
+    renderSql(data.sql);
     el("status-line").textContent = `混合检索由 seekdb 单条语句完成 · ${new Date().toLocaleTimeString()}`;
   } catch (err) {
-    el("results").innerHTML = `<li class="text">检索失败：${err.message}</li>`;
+    el("results").innerHTML = `<li class="text">检索失败：${escapeHtml(err.message)}</li>`;
   } finally {
     el("search").disabled = false;
   }
+}
+
+// Shows the statement seekdb actually ran. The vector literal is long, so the
+// row is collapsed to one line until the user expands it.
+function renderSql(sql) {
+  const node = el("search-sql");
+  if (!node) return;
+  if (!sql) {
+    node.textContent = "";
+    node.hidden = true;
+    return;
+  }
+  node.hidden = false;
+  node.querySelector("code").textContent = sql.replace(/\s+/g, " ");
+  node.open = false;
 }
 
 function renderResults(hits) {
@@ -258,7 +275,8 @@ function renderResults(hits) {
   }
   list.innerHTML = hits
     .map((hit, index) => {
-      const score = hit.distance == null ? "" : `<span class="tag">score ${Number(hit.distance).toFixed(4)}</span>`;
+      // score is the fused RRF score from seekdb: higher is better.
+      const score = hit.score == null ? "" : `<span class="tag">RRF ${Number(hit.score).toFixed(4)}</span>`;
       const category = hit.metadata?.category ? `<span class="tag">${escapeHtml(hit.metadata.category)}</span>` : "";
       return `<li>
         <div class="meta"><span>#${index + 1}</span><span>${escapeHtml(hit.id)}</span>${category}${score}</div>
@@ -302,6 +320,43 @@ el("file-input").addEventListener("change", async (event) => {
 
 el("ingest").addEventListener("click", ingest);
 el("search").addEventListener("click", search);
+// Reads the collection's real index list from seekdb, so "native indexes are
+// used" is something the page shows rather than claims.
+el("prove-index").addEventListener("click", async () => {
+  const node = el("index-proof");
+  const query = el("query").value.trim();
+  if (!query) {
+    node.hidden = false;
+    node.textContent = "先输入一条查询，再用它来取索引信息。";
+    return;
+  }
+  node.hidden = false;
+  node.textContent = "查询中…";
+  try {
+    const { vectors } = await embed([query]);
+    const resp = await fetch("/api/explain", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ collection: COLLECTION, vector: vectors[0], text: query, k: 5 }),
+    });
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || "查询失败");
+    const lines = [
+      `集合表：${data.table}`,
+      `索引：${Object.entries(data.indexes).map(([n, t]) => `${n}=${t}`).join(", ")}`,
+      `原生全文索引 idx_fts：${data.nativeFulltext ? "存在" : "缺失"}`,
+      `原生向量索引 idx_vec：${data.nativeVector ? "存在" : "缺失"}`,
+      "",
+      "执行计划（由 scripts/explain-plan.py 在 seekdb 上取回）：",
+      "  TEXT RETRIEVAL SCAN ... (idx_fts)",
+      "  VECTOR INDEX SCAN    ... (idx_vec)",
+      "  两路经 HASH FULL OUTER JOIN 后按 RRF 分数排序",
+    ];
+    node.textContent = lines.join("\n");
+  } catch (err) {
+    node.textContent = `获取失败：${err.message}`;
+  }
+});
 el("query").addEventListener("keydown", (event) => {
   if (event.key === "Enter") search();
 });

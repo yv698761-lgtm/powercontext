@@ -1,0 +1,98 @@
+﻿collection : kb_stepfun_demo
+table      : c$v2$4177286cd7ff11f19d982e6429d9c98b
+query      : 新写入的数据查不到怎么办
+
+=======================================================================================================
+|ID|OPERATOR                     |NAME                                          |EST.ROWS|EST.TIME(us)|
+-------------------------------------------------------------------------------------------------------
+|0 |TOP-N SORT                   |                                              |5       |24460       |
+|1 |└─HASH FULL OUTER JOIN       |                                              |46      |24455       |
+|2 |  ├─SUBPLAN SCAN             |_vs                                           |1       |72          |
+|3 |  │ └─WINDOW FUNCTION        |                                              |1       |72          |
+|4 |  │   └─SORT                 |                                              |1       |71          |
+|5 |  │     └─SUBPLAN SCAN       |ANONYMOUS_VIEW2                               |1       |70          |
+|6 |  │       └─VECTOR INDEX SCAN|c$v2$4177286cd7ff11f19d982e6429d9c98b(idx_vec)|1       |70          |
+|7 |  └─SUBPLAN SCAN             |_fts                                          |46      |24371       |
+|8 |    └─WINDOW FUNCTION        |                                              |46      |24371       |
+|9 |      └─SUBPLAN SCAN         |ANONYMOUS_VIEW1                               |46      |24316       |
+|10|        └─TEXT RETRIEVAL SCAN|c$v2$4177286cd7ff11f19d982e6429d9c98b(idx_fts)|46      |24316       |
+=======================================================================================================
+Outputs & filters:
+-------------------------------------
+  0 - output([IFNULL(_fts._id, _vs._id)], [_fts.document], [_fts.metadata], [IFNULL(cast(1, DECIMAL_INT(37, 33)) / cast(_fts._keyword_rank + 60, DECIMAL_INT(21,
+       0)), cast(0, DECIMAL(24, 4))) + IFNULL(cast(1, DECIMAL_INT(37, 33)) / cast(_vs._semantic_rank + 60, DECIMAL_INT(21, 0)), cast(0, DECIMAL(24, 4)))]), filter(nil), rowset=256
+      sort_keys([IFNULL(cast(1, DECIMAL_INT(37, 33)) / cast(_fts._keyword_rank + 60, DECIMAL_INT(21, 0)), cast(0, DECIMAL(24, 4))) + IFNULL(cast(1, DECIMAL_INT(37,
+       33)) / cast(_vs._semantic_rank + 60, DECIMAL_INT(21, 0)), cast(0, DECIMAL(24, 4))), DESC]), topn(5)
+  1 - output([_fts.document], [_fts.metadata], [_fts._id], [_vs._id], [_vs._semantic_rank], [_fts._keyword_rank]), filter(nil), rowset=256
+      equal_conds([_fts._id = _vs._id]), other_conds(nil)
+  2 - output([_vs._id], [_vs._semantic_rank]), filter(nil), rowset=256
+      access([_vs._id], [_vs._semantic_rank])
+  3 - output([ANONYMOUS_VIEW2._id], [ANONYMOUS_VIEW2.document], [ANONYMOUS_VIEW2.embedding], [ANONYMOUS_VIEW2.metadata], [ANONYMOUS_VIEW2._distance], [ANONYMOUS_VIEW2._semantic_score],
+       [T_WIN_FUN_RANK()]), filter(nil), rowset=256
+      win_expr(T_WIN_FUN_RANK()), partition_by(nil), order_by([ANONYMOUS_VIEW2._semantic_score, DESC]), window_type(RANGE), upper(UNBOUNDED PRECEDING), 
+      lower(UNBOUNDED FOLLOWING)
+  4 - output([ANONYMOUS_VIEW2._id], [ANONYMOUS_VIEW2.document], [ANONYMOUS_VIEW2.embedding], [ANONYMOUS_VIEW2.metadata], [ANONYMOUS_VIEW2._distance], [ANONYMOUS_VIEW2._semantic_score]), filter(nil), rowset=256
+      sort_keys([ANONYMOUS_VIEW2._semantic_score, DESC])
+  5 - output([ANONYMOUS_VIEW2._id], [ANONYMOUS_VIEW2.document], [ANONYMOUS_VIEW2.embedding], [ANONYMOUS_VIEW2.metadata], [ANONYMOUS_VIEW2._distance], [ANONYMOUS_VIEW2._semantic_score]), filter(nil), rowset=256
+      access([ANONYMOUS_VIEW2._id], [ANONYMOUS_VIEW2.document], [ANONYMOUS_VIEW2.embedding], [ANONYMOUS_VIEW2.metadata], [ANONYMOUS_VIEW2._distance], [ANONYMOUS_VIEW2._semantic_score])
+  6 - output([c$v2$4177286cd7ff11f19d982e6429d9c98b._id], [c$v2$4177286cd7ff11f19d982e6429d9c98b.document], [c$v2$4177286cd7ff11f19d982e6429d9c98b.embedding],
+       [c$v2$4177286cd7ff11f19d982e6429d9c98b.metadata], [COSINE_DISTANCE(c$v2$4177286cd7ff11f19d982e6429d9c98b.embedding, cast('[1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]', ARRAY(18, -1)))], [ROUND(cast(1, DOUBLE(-1, -1)) - COSINE_DISTANCE(c$v2$4177286cd7ff11f19d982e6429d9c98b.embedding,
+       cast('[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]', ARRAY(18, -1))) / cast(2, DOUBLE(-1, -1)), 8)]), filter(nil), rowset=256
+      access([c$v2$4177286cd7ff11f19d982e6429d9c98b.__pk_increment], [c$v2$4177286cd7ff11f19d982e6429d9c98b.embedding], [c$v2$4177286cd7ff11f19d982e6429d9c98b._id],
+       [c$v2$4177286cd7ff11f19d982e6429d9c98b.document], [c$v2$4177286cd7ff11f19d982e6429d9c98b.metadata]), partitions(p0)
+      is_index_back=true, is_global_index=false, 
+      range_key([c$v2$4177286cd7ff11f19d982e6429d9c98b.__pk_increment], [c$v2$4177286cd7ff11f19d982e6429d9c98b.__type_18_1793762674024069]), range(MIN,MIN 
+      ; MAX,MAX)always true
+  7 - output([_fts._id], [_fts.document], [_fts.metadata], [_fts._keyword_rank]), filter(nil), rowset=256
+      access([_fts._id], [_fts.document], [_fts.metadata], [_fts._keyword_rank])
+  8 - output([ANONYMOUS_VIEW1._id], [ANONYMOUS_VIEW1.document], [ANONYMOUS_VIEW1.embedding], [ANONYMOUS_VIEW1.metadata], [ANONYMOUS_VIEW1._keyword_score],
+       [T_WIN_FUN_RANK()]), filter(nil), rowset=256
+      win_expr(T_WIN_FUN_RANK()), partition_by(nil), order_by([ANONYMOUS_VIEW1._keyword_score, DESC]), window_type(RANGE), upper(UNBOUNDED PRECEDING), lower(UNBOUNDED 
+      FOLLOWING)
+  9 - output([ANONYMOUS_VIEW1._id], [ANONYMOUS_VIEW1.document], [ANONYMOUS_VIEW1.embedding], [ANONYMOUS_VIEW1.metadata], [ANONYMOUS_VIEW1._keyword_score]), filter(nil), rowset=256
+      access([ANONYMOUS_VIEW1._id], [ANONYMOUS_VIEW1.document], [ANONYMOUS_VIEW1.embedding], [ANONYMOUS_VIEW1.metadata], [ANONYMOUS_VIEW1._keyword_score])
+ 10 - output([c$v2$4177286cd7ff11f19d982e6429d9c98b._id], [c$v2$4177286cd7ff11f19d982e6429d9c98b.document], [c$v2$4177286cd7ff11f19d982e6429d9c98b.embedding],
+       [c$v2$4177286cd7ff11f19d982e6429d9c98b.metadata], [MATCH(c$v2$4177286cd7ff11f19d982e6429d9c98b.document) AGAINST('新写入的数据查不到怎么办')]), filter(nil), rowset=256
+      access([c$v2$4177286cd7ff11f19d982e6429d9c98b.__pk_increment], [c$v2$4177286cd7ff11f19d982e6429d9c98b.embedding], [c$v2$4177286cd7ff11f19d982e6429d9c98b.document],
+       [c$v2$4177286cd7ff11f19d982e6429d9c98b._id], [c$v2$4177286cd7ff11f19d982e6429d9c98b.metadata]), partitions(p0)
+      is_index_back=true, is_global_index=false, 
+      calc_relevance=true, match_expr(MATCH(c$v2$4177286cd7ff11f19d982e6429d9c98b.document) AGAINST('新写入的数据查不到怎么办')), 
+      pushdown_match_filter(MATCH(c$v2$4177286cd7ff11f19d982e6429d9c98b.document) AGAINST('新写入的数据查不到怎么办')), 
+      sort_keys([MATCH(c$v2$4177286cd7ff11f19d982e6429d9c98b.document) AGAINST('新写入的数据查不到怎么办'), DESC]), limit(800), offset(nil),
+       with_ties(false)
+
+[PASS] TEXT RETRIEVAL SCAN    -> native fulltext index (idx_fts)
+[PASS] VECTOR INDEX SCAN      -> native vector index (idx_vec)

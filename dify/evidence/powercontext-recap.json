@@ -1,0 +1,59 @@
+{
+  "player": "dify:8b1e7247-d601-43ac-a7df-1599d6416330:verify-a-885483",
+  "recap": {
+    "player": "dify:8b1e7247-d601-43ac-a7df-1599d6416330:verify-a-885483",
+    "scope_id": "scp_7gmstqnnz2e2k53dvhadxpznc7",
+    "artifact_id": "art_a3a5fd10ee8e4696afaebca4f50dac62",
+    "seq": 2,
+    "rank": {
+      "title": "见习侦探",
+      "note": "第一次让案卷自己开口说话。",
+      "passes": 1,
+      "rounds": 2
+    },
+    "trust": {
+      "林默": 0,
+      "阿鬼": 1,
+      "妙音": 0
+    },
+    "seen_cases": [
+      "case-012",
+      "case-001"
+    ],
+    "verdicts": [
+      "会走路的铜锁：勘结被驳回",
+      "紫藤巷的铜铃案：勘结成立"
+    ],
+    "grudge": [
+      "第 1 轮「会走路的铜锁」被驳回：小孩踢锁很符合铜锁乱跑的样子，但被刮改的字和烧在茶炉里的雕花木屑在说别的事。"
+    ],
+    "rounds": [
+      {
+        "seq": 1,
+        "case": "会走路的铜锁",
+        "case_id": "case-012",
+        "accused": "野猫。谣传一：铜锁是被小孩当球踢走的。",
+        "pass": false,
+        "score": -1,
+        "detective_hits": {
+          "林默": 0,
+          "阿鬼": 1,
+          "妙音": 0
+        }
+      },
+      {
+        "seq": 2,
+        "case": "紫藤巷的铜铃案",
+        "case_id": "case-001",
+        "accused": "他。关键证据是撬痕朝向院内、布鞋印只有去程没有回程，说明作案者从院内出门再翻墙离开；院内唯一有钥匙的是绣娘姚娘子。",
+        "pass": true,
+        "score": 4,
+        "detective_hits": {
+          "林默": 0,
+          "阿鬼": 0,
+          "妙音": 0
+        }
+      }
+    ]
+  }
+}

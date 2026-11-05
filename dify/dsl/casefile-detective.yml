@@ -1,0 +1,1158 @@
+kind: app
+version: 0.5.0
+dependencies: []
+app:
+  name: 离谱侦探社
+  description: Dify × seekdb × PowerContext：三位性格不同的 AI 侦探各说各话，你只能用知识库里的案卷证据盖章；档案员会记住你上次栽在哪里。
+  mode: advanced-chat
+  icon: 🕵️
+  icon_background: '#E0F2FE'
+  use_icon_as_answer_icon: true
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - id: 9f2a1f7c-1c1e-4c3a-9c11-1a2b3c4d5e01
+    name: DETECTIVE_API_KEY
+    value: REPLACE_WITH_DETECTIVE_API_KEY
+    value_type: secret
+    selector:
+    - env
+    - DETECTIVE_API_KEY
+    description: 与后端 .env 里的 DETECTIVE_API_KEY 一致
+  features:
+    opening_statement: '🕵️ 离谱侦探社开门了。
+
+
+      镇上的案卷太多，三位侦探又常常互相矛盾：林默只认物证，阿鬼只问谁得利，妙音满嘴流言。
+
+      真正靠得住的凭据，是档案室里的案卷本身。
+
+
+      输入「开场」领一份案卷；读完写下你的指控（例如「真凶是姚娘子，撬痕朝院内，说明人是院里出去的」）；「提示」让档案员给一条线索；「战绩」看你的档案。
+
+      关掉页面、甚至换个新会话回来，档案员仍然还记得你。'
+    suggested_questions:
+    - 开场
+    - 战绩
+    - 真凶是姚娘子，铜铃是被撬棍从门轴上顶落的
+    - 提示
+    suggested_questions_after_answer:
+      enabled: false
+    retriever_resource:
+      enabled: true
+    speech_to_text:
+      enabled: false
+    text_to_speech:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    file_upload:
+      enabled: false
+  graph:
+    nodes:
+    - id: start
+      type: custom
+      position:
+        x: 40
+        y: 320
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: start
+        title: 玩家发言
+        desc: 同一个 Dify 终端用户（sys.user_id）在侦探社里永远对应同一份档案。
+        selected: false
+        variables: []
+    - id: parse
+      type: custom
+      position:
+        x: 300
+        y: 320
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: code
+        title: ① 解析意图
+        desc: 把「开场 / 指控 / 提示 / 战绩 / 玩法」分开；player 由 app_id + user_id 拼成，跨会话稳定。
+        selected: false
+        code_language: python3
+        code: "import re\n\nCOMMANDS = {\n    \"open\": [\"开场\", \"新案\", \"换案\", \"换一个\", \"下一案\", \"再来一份\", \"来一份\"],\n \
+          \   \"hint\": [\"提示\", \"给点线索\", \"看不懂\", \"太难了\"],\n    \"rank\": [\"战绩\", \"等级\", \"我是谁\", \"档案\"],\n    \"help\"\
+          : [\"帮助\", \"怎么玩\", \"玩法\", \"说明\"],\n}\nACCUSE_PREFIXES = [\"指控\", \"结案\", \"我断定\", \"真凶是\", \"凶手是\", \"定案\", \"\
+          我认定\"]\n\ndef main(query: str, user: str, app: str) -> dict:\n    text = re.sub(r\"\\s+\", \" \", (query or \"\"\
+          ).strip())[:1500]\n    intent = \"accuse\" if text else \"open\"\n    for key, words in COMMANDS.items():\n    \
+          \    if any(text == word or text.startswith(word) for word in words):\n            intent = key\n            break\n\
+          \    accusation = text\n    for word in ACCUSE_PREFIXES:\n        if accusation.startswith(word):\n            accusation\
+          \ = accusation[len(word):].lstrip(\":：,， \")\n    if intent == \"accuse\" and not accusation:\n        intent =\
+          \ \"open\"\n    player = \"dify:\" + (app or \"local\") + \":\" + (user or \"anonymous\")\n    safe = text.replace('\"\
+          ', \"'\")\n    return {\n        \"intent\": intent,\n        \"query\": text,\n        \"accusation\": accusation,\n\
+          \        \"player\": player,\n        \"player_input\": '{\"player\": \"' + player + '\", \"app_id\": \"' + (app\
+          \ or \"\") + '\", \"user_input\": \"' + safe + '\"}',\n    }\n"
+        variables:
+        - variable: query
+          value_selector:
+          - sys
+          - query
+        - variable: user
+          value_selector:
+          - sys
+          - user_id
+        - variable: app
+          value_selector:
+          - sys
+          - app_id
+        outputs:
+          intent:
+            type: string
+            children: null
+          query:
+            type: string
+            children: null
+          accusation:
+            type: string
+            children: null
+          player:
+            type: string
+            children: null
+          player_input:
+            type: string
+            children: null
+    - id: open
+      type: custom
+      position:
+        x: 560
+        y: 320
+      width: 244
+      height: 140
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: http-request
+        title: ② 读记忆并开场
+        desc: PowerContext 读：把这位玩家的等级、侦探信任度、黑历史读回来，并抽一份案卷。
+        selected: false
+        method: post
+        url: http://host.docker.internal:8012/session/open
+        authorization:
+          type: no-auth
+        headers: 'Content-Type:application/json
+
+          Authorization:Bearer {{#env.DETECTIVE_API_KEY#}}'
+        params: ''
+        body:
+          type: json
+          data:
+          - key: ''
+            type: text
+            value: '{{#parse.player_input#}}'
+        timeout:
+          connect: 10
+          read: 60
+          write: 20
+        ssl_verify: true
+        retry_config:
+          retry_enabled: false
+          max_retries: 0
+          retry_interval: 1000
+    - id: unpack
+      type: custom
+      position:
+        x: 820
+        y: 320
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: code
+        title: ③ 拆开场回执
+        desc: ''
+        selected: false
+        code_language: python3
+        code: "import json\n\nFIELDS = [\"ok\", \"error\", \"kb_query\", \"case_title\", \"case_id\", \"ticket\", \"briefing\"\
+          , \"document\",\n          \"archivist_line\", \"rank_title\", \"rank_note\", \"memory_id\", \"memory_summary\"\
+          ,\n          \"trust_text\", \"seen_text\", \"hint\"]\n\ndef main(body: str) -> dict:\n    out = {key: \"\" for\
+          \ key in FIELDS}\n    out[\"seq\"] = 0\n    try:\n        data = json.loads(body)\n    except Exception:\n     \
+          \   out[\"error\"] = (body or \"\")[:400]\n        return out\n    case = data.get(\"case\") or {}\n    memory =\
+          \ data.get(\"memory\") or {}\n    rank = memory.get(\"rank\") or {}\n    trust = memory.get(\"trust\") or {}\n \
+          \   seen = memory.get(\"seen_cases\") or []\n    title = case.get(\"title\") or \"\"\n    document = case.get(\"\
+          document\") or \"\"\n    out.update({\n        \"ok\": str(bool(data.get(\"ticket\"))),\n        \"kb_query\": (title\
+          \ + \" \" + document[:120]).strip(),\n        \"case_title\": title,\n        \"case_id\": case.get(\"case_id\"\
+          ) or \"\",\n        \"ticket\": data.get(\"ticket\") or \"\",\n        \"briefing\": case.get(\"briefing\") or \"\
+          \",\n        \"document\": document,\n        \"archivist_line\": (data.get(\"archivist\") or {}).get(\"line\")\
+          \ or \"\",\n        \"rank_title\": rank.get(\"title\") or \"\",\n        \"rank_note\": rank.get(\"note\") or \"\
+          \",\n        \"memory_id\": memory.get(\"artifact_id\") or \"\",\n        \"hint\": data.get(\"hint\") or \"\",\n\
+          \        \"seq\": int(memory.get(\"seq\") or 0),\n    })\n    out[\"memory_summary\"] = (\"等级 \" + (rank.get(\"\
+          title\") or \"实习记录员\")\n                             + \"；已办 \" + str(len(seen)) + \" 份案卷；上次判定 \"\n            \
+          \                 + (memory.get(\"last_verdict\") or \"无\"))\n    out[\"trust_text\"] = \"；\".join([name + \" \"\
+          \ + str(value) for name, value in trust.items()]) or \"暂无\"\n    out[\"seen_text\"] = \"、\".join(seen) or \"（还没有办过案卷）\"\
+          \n    return out\n"
+        variables:
+        - variable: body
+          value_selector:
+          - open
+          - body
+        outputs:
+          ok:
+            type: string
+            children: null
+          error:
+            type: string
+            children: null
+          kb_query:
+            type: string
+            children: null
+          case_title:
+            type: string
+            children: null
+          case_id:
+            type: string
+            children: null
+          ticket:
+            type: string
+            children: null
+          briefing:
+            type: string
+            children: null
+          document:
+            type: string
+            children: null
+          archivist_line:
+            type: string
+            children: null
+          rank_title:
+            type: string
+            children: null
+          rank_note:
+            type: string
+            children: null
+          seq:
+            type: number
+            children: null
+          memory_id:
+            type: string
+            children: null
+          memory_summary:
+            type: string
+            children: null
+          trust_text:
+            type: string
+            children: null
+          seen_text:
+            type: string
+            children: null
+          hint:
+            type: string
+            children: null
+    - id: gate
+      type: custom
+      position:
+        x: 1080
+        y: 320
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: if-else
+        title: ④ 这次是不是指控
+        desc: 只有「指控」才进判定链；开场、提示、战绩走信息链，不消耗回合。
+        selected: false
+        logical_operator: and
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - variable_selector:
+            - parse
+            - intent
+            comparison_operator: is
+            value: accuse
+    - id: info
+      type: custom
+      position:
+        x: 1340
+        y: 60
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: code
+        title: ④A 组装信息回复
+        desc: ''
+        selected: false
+        code_language: python3
+        code: "def main(intent: str, case_title: str, briefing: str, archivist_line: str, hint: str,\n         rank_title:\
+          \ str, rank_note: str, memory_summary: str, seen_text: str,\n         memory_id: str, seq: int) -> dict:\n    head\
+          \ = \"\U0001F3EE **离谱侦探社** · 档案员老砚：\\n\" + (archivist_line or \"档案室今天很安静。\") + \"\\n\\n\"\n    if intent == \"hint\"\
+          :\n        body = (\"### 案卷：「\" + case_title + \"」\\n\" + (briefing or \"\") + \"\\n\\n\"\n                \"**老砚压低声**：这句别写进勘结，但你可以照着找——\\\
+          n> \"\n                + (hint or \"先看现场，再看矛盾那一栏。\") + \"\\n\\n\"\n                \"看完写下你的指控，例如「真凶是某某，因为某处痕迹只能这样解释」。\"\
+          )\n    elif intent == \"rank\":\n        body = (\"### 你的档案\\n\"\n                \"等级：**\" + (rank_title or \"\
+          实习记录员\") + \"**（\" + (rank_note or \"\") + \"）\\n\"\n                \"- \" + (memory_summary or \"还没有记录\") + \"\
+          \\n\"\n                \"- 记忆凭证：PowerContext `\" + (memory_id or \"（尚未建立）\") + \"`\\n\"\n                \"- 办过的案卷：\"\
+          \ + (seen_text or \"（无）\") + \"\\n\\n\"\n                \"输入「开场」开始下一份案卷。\")\n    elif intent == \"help\":\n   \
+          \     body = (\"### 怎么玩\\n\"\n                \"1. 输入「开场」领一份案卷，读现场、线索、矛盾三部分。\\n\"\n                \"2. 三位侦探会各有说法：林默只看物证，阿鬼只问谁得利，妙音爱传流言——他们说错话是常态。\\\
+          n\"\n                \"3. 你写下指控，点名凶手并给出决定性的那处证据；判定按案卷 canon 执行，AI 说了不算。\\n\"\n                \"4. 「提示」找老砚要线索，「战绩」看档案。换新会话回来，档案员仍然记得你。\"\
+          )\n    else:\n        body = (\"### 案卷：「\" + (case_title or \"（还没抽到）\") + \"」\\n\"\n                + (briefing\
+          \ or \"\") + \"\\n\\n\"\n                \"三位侦探已经就位。读完材料直接写下指控，例如：\\n\"\n                \"> 真凶是姚娘子，铜铃是被撬棍从门轴上顶落的，撬痕朝院内，说明她是从院里出来的人。\\\
+          n\\n\"\n                \"输入「提示」可以让老砚给一条线索。\")\n    return {\"info_text\": head + body}\n"
+        variables:
+        - variable: intent
+          value_selector:
+          - parse
+          - intent
+        - variable: case_title
+          value_selector:
+          - unpack
+          - case_title
+        - variable: briefing
+          value_selector:
+          - unpack
+          - briefing
+        - variable: archivist_line
+          value_selector:
+          - unpack
+          - archivist_line
+        - variable: hint
+          value_selector:
+          - unpack
+          - hint
+        - variable: rank_title
+          value_selector:
+          - unpack
+          - rank_title
+        - variable: rank_note
+          value_selector:
+          - unpack
+          - rank_note
+        - variable: memory_summary
+          value_selector:
+          - unpack
+          - memory_summary
+        - variable: seen_text
+          value_selector:
+          - unpack
+          - seen_text
+        - variable: memory_id
+          value_selector:
+          - unpack
+          - memory_id
+        - variable: seq
+          value_selector:
+          - unpack
+          - seq
+        outputs:
+          info_text:
+            type: string
+            children: null
+    - id: answer_info
+      type: custom
+      position:
+        x: 1600
+        y: 60
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: answer
+        title: ④B 信息回复
+        desc: ''
+        selected: false
+        answer: '{{#info.info_text#}}'
+        variables: []
+    - id: kb
+      type: custom
+      position:
+        x: 1340
+        y: 480
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: knowledge-retrieval
+        title: ⑤ 检索案卷库（seekdb）
+        desc: Dify 原生知识库检索：seekdb 同一张表上有向量索引和全文索引，这里按 0.7 / 0.3 加权融合。
+        selected: false
+        query_variable_selector:
+        - unpack
+        - kb_query
+        dataset_ids:
+        - 11111111-2222-3333-4444-555555555555
+        retrieval_mode: multiple
+        multiple_retrieval_config:
+          top_k: 6
+          score_threshold: null
+          reranking_mode: weighted_score
+          reranking_enable: true
+          reranking_model: null
+          weights:
+            vector_setting:
+              vector_weight: 0.7
+              embedding_provider_name: langgenius/openai/openai
+              embedding_model_name: text-embedding-3-small
+            keyword_setting:
+              keyword_weight: 0.3
+        metadata_filtering_mode: disabled
+        metadata_filtering_conditions: null
+        vision:
+          enabled: false
+    - id: pack
+      type: custom
+      position:
+        x: 1600
+        y: 480
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: code
+        title: ⑥ 整理检索片段
+        desc: ''
+        selected: false
+        code_language: python3
+        code: "def main(segments: list, briefing: str, document: str) -> dict:\n    lines = []\n    for item in (segments\
+          \ or [])[:6]:\n        if isinstance(item, dict):\n            content = (item.get(\"content\") or \"\").strip().replace(\"\
+          \\n\", \" \")\n            if content:\n                lines.append(\"【\" + (item.get(\"title\") or \"案卷\") + \"\
+          】\" + content[:220])\n        elif isinstance(item, str):\n            lines.append(item[:220])\n    return {\n\
+          \        \"evidence\": \"\\n\".join(lines) if lines else \"（知识库没有检索到片段）\",\n        \"case_context\": (document\
+          \ or briefing or \"\")[:1400],\n        \"hit_count\": len(lines),\n    }\n"
+        variables:
+        - variable: segments
+          value_selector:
+          - kb
+          - result
+        - variable: briefing
+          value_selector:
+          - unpack
+          - briefing
+        - variable: document
+          value_selector:
+          - unpack
+          - document
+        outputs:
+          evidence:
+            type: string
+            children: null
+          case_context:
+            type: string
+            children: null
+          hit_count:
+            type: number
+            children: null
+    - id: linmo
+      type: custom
+      position:
+        x: 1860
+        y: 300
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: llm
+        title: ⑦ 侦探 · 林默
+        desc: 物证派侦探，只认物证，讨厌没有痕迹支撑的说法，说话短、硬，像在念笔录。
+        selected: false
+        model:
+          provider: langgenius/deepseek/deepseek
+          name: deepseek-flash
+          mode: chat
+          completion_params:
+            temperature: 0.85
+            max_tokens: 220
+        prompt_template:
+        - role: system
+          text: '你是清代小城侦探社的林默。物证派侦探，只认物证，讨厌没有痕迹支撑的说法，说话短、硬，像在念笔录。
+
+            你只根据给出的案卷材料发言，不编造型号、人名或物证。
+
+            材料里既有官府勘结的真相与决定性证据，也有坊间流言：流言不能当成事实，但按你的性格，可以替它说句话并注明「听来的」。
+
+            输出要求：不超过 70 字，先判断手里有没有物证，再指出一处可疑的痕迹细节。只输出台词本身，不要标题，不要解释你是否在扮演。'
+        - role: user
+          text: '【案卷材料】
+
+            {{#pack.case_context#}}
+
+
+            【知识库检索片段】
+
+            {{#pack.evidence#}}
+
+
+            【玩家这次的说法】
+
+            {{#parse.query#}}
+
+
+            给出一句判断，并说明你依据的是材料里的哪处痕迹或哪条传闻。'
+        prompt_config:
+          jinja2_variables: []
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+        reasoning_format: separated
+    - id: agui
+      type: custom
+      position:
+        x: 1860
+        y: 480
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: llm
+        title: ⑦ 侦探 · 阿鬼
+        desc: 人心派侦探，偏爱动机与关系网，喜欢问「谁得利」，容易被利益关系带偏。
+        selected: false
+        model:
+          provider: langgenius/deepseek/deepseek
+          name: deepseek-flash
+          mode: chat
+          completion_params:
+            temperature: 0.85
+            max_tokens: 220
+        prompt_template:
+        - role: system
+          text: '你是清代小城侦探社的阿鬼。人心派侦探，偏爱动机与关系网，喜欢问「谁得利」，容易被利益关系带偏。
+
+            你只根据给出的案卷材料发言，不编造型号、人名或物证。
+
+            材料里既有官府勘结的真相与决定性证据，也有坊间流言：流言不能当成事实，但按你的性格，可以替它说句话并注明「听来的」。
+
+            输出要求：不超过 70 字，从动机和利害关系切入，可以点名嫌疑人，但要说明为什么。只输出台词本身，不要标题，不要解释你是否在扮演。'
+        - role: user
+          text: '【案卷材料】
+
+            {{#pack.case_context#}}
+
+
+            【知识库检索片段】
+
+            {{#pack.evidence#}}
+
+
+            【玩家这次的说法】
+
+            {{#parse.query#}}
+
+
+            给出一句判断，并说明你依据的是材料里的哪处痕迹或哪条传闻。'
+        prompt_config:
+          jinja2_variables: []
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+        reasoning_format: separated
+    - id: miaoyin
+      type: custom
+      position:
+        x: 1860
+        y: 660
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: llm
+        title: ⑦ 侦探 · 妙音
+        desc: 风闻派侦探，满脑子坊间传闻与时间线，会引用流言，也可能把流言当成线索。
+        selected: false
+        model:
+          provider: langgenius/deepseek/deepseek
+          name: deepseek-flash
+          mode: chat
+          completion_params:
+            temperature: 0.85
+            max_tokens: 220
+        prompt_template:
+        - role: system
+          text: '你是清代小城侦探社的妙音。风闻派侦探，满脑子坊间传闻与时间线，会引用流言，也可能把流言当成线索。
+
+            你只根据给出的案卷材料发言，不编造型号、人名或物证。
+
+            材料里既有官府勘结的真相与决定性证据，也有坊间流言：流言不能当成事实，但按你的性格，可以替它说句话并注明「听来的」。
+
+            输出要求：不超过 70 字，引用一到两条坊间说法或时间点，语气轻快。只输出台词本身，不要标题，不要解释你是否在扮演。'
+        - role: user
+          text: '【案卷材料】
+
+            {{#pack.case_context#}}
+
+
+            【知识库检索片段】
+
+            {{#pack.evidence#}}
+
+
+            【玩家这次的说法】
+
+            {{#parse.query#}}
+
+
+            给出一句判断，并说明你依据的是材料里的哪处痕迹或哪条传闻。'
+        prompt_config:
+          jinja2_variables: []
+        memory: null
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+        reasoning_format: separated
+    - id: clean
+      type: custom
+      position:
+        x: 1990
+        y: 480
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: code
+        title: ⑦' 清洗台词
+        desc: 去掉模型自带的 <think> 思维标签，只保留台词。
+        selected: false
+        code_language: python3
+        code: "import re\n\nTHINK = re.compile(r\"<think[^>]*>.*?</think>|<!--.*?-->\", re.S)\n\n\ndef _clean(text: str) ->\
+          \ str:\n    value = THINK.sub(\" \", text or \"\")\n    value = re.sub(r\"\\s+\", \" \", value).strip()\n    return\
+          \ value[:260]\n\n\ndef main(linmo: str, agui: str, miaoyin: str) -> dict:\n    return {\n        \"linmo\": _clean(linmo)\
+          \ or \"（林默翻了翻笔录，没说话）\",\n        \"agui\": _clean(agui) or \"（阿鬼耸了耸肩）\",\n        \"miaoyin\": _clean(miaoyin) or\
+          \ \"（妙音还在打听街上的说法）\",\n    }\n"
+        variables:
+        - variable: linmo
+          value_selector:
+          - linmo
+          - text
+        - variable: agui
+          value_selector:
+          - agui
+          - text
+        - variable: miaoyin
+          value_selector:
+          - miaoyin
+          - text
+        outputs:
+          linmo:
+            type: string
+            children: null
+          agui:
+            type: string
+            children: null
+          miaoyin:
+            type: string
+            children: null
+    - id: judge
+      type: custom
+      position:
+        x: 2120
+        y: 480
+      width: 244
+      height: 140
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: http-request
+        title: ⑧ 判定并写回记忆
+        desc: 确定性判定 + PowerContext 写回：AI 侦探可以胡说，盖章必须按案卷 canon。
+        selected: false
+        method: post
+        url: http://host.docker.internal:8012/session/judge
+        authorization:
+          type: no-auth
+        headers: 'Content-Type:application/json
+
+          Authorization:Bearer {{#env.DETECTIVE_API_KEY#}}'
+        params: ''
+        body:
+          type: json
+          data:
+          - key: ''
+            type: text
+            value: '{"ticket": "{{#unpack.ticket#}}", "accusation": "{{#parse.accusation#}}", "speeches": {"linmo": "{{#linmo.text#}}",
+              "agui": "{{#agui.text#}}", "miaoyin": "{{#miaoyin.text#}}"}}'
+        timeout:
+          connect: 10
+          read: 60
+          write: 20
+        ssl_verify: true
+        retry_config:
+          retry_enabled: false
+          max_retries: 0
+          retry_interval: 1000
+    - id: verdict
+      type: custom
+      position:
+        x: 2380
+        y: 480
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: code
+        title: ⑨ 拆判定回执
+        desc: ''
+        selected: false
+        code_language: python3
+        code: "import json\n\ndef main(body: str) -> dict:\n    out = {\"ok\": \"False\", \"error\": \"\", \"pass\": False,\
+          \ \"verdict\": \"\", \"evidence\": \"\", \"expected\": \"\",\n           \"memory_id\": \"\", \"rank_title\": \"\
+          \", \"rank_note\": \"\", \"canon_report\": \"\",\n           \"rumour_report\": \"\", \"verdict_line\": \"\", \"\
+          trust_text\": \"\", \"seq\": 0}\n    try:\n        data = json.loads(body)\n    except Exception:\n        out[\"\
+          error\"] = (body or \"\")[:400]\n        return out\n    hits = data.get(\"canon_hits\") or []\n    rumours = data.get(\"\
+          rumour_hits\") or []\n    rank = data.get(\"rank\") or {}\n    trust = data.get(\"trust\") or {}\n    out.update({\n\
+          \        \"ok\": \"True\",\n        \"pass\": bool(data.get(\"pass\")),\n        \"verdict\": data.get(\"verdict\"\
+          ) or \"\",\n        \"evidence\": (data.get(\"evidence_fragment\") or {}).get(\"text\") or \"\",\n        \"expected\"\
+          : data.get(\"expected_answer\") or \"\",\n        \"memory_id\": data.get(\"memory_id\") or \"\",\n        \"seq\"\
+          : int(data.get(\"seq\") or 0),\n        \"rank_title\": rank.get(\"title\") or \"\",\n        \"rank_note\": rank.get(\"\
+          note\") or \"\",\n        \"canon_report\": \"；\".join([item.get(\"claim\", \"\") for item in hits]) or \"（没有命中任何已勘结事实）\"\
+          ,\n        \"rumour_report\": \"、\".join(rumours) or \"无\",\n        \"verdict_line\": data.get(\"verdict_line\"\
+          ) or \"\",\n        \"trust_text\": \"；\".join([name + \" \" + str(value) for name, value in trust.items()]) or\
+          \ \"暂无\",\n    })\n    return out\n"
+        variables:
+        - variable: body
+          value_selector:
+          - judge
+          - body
+        outputs:
+          ok:
+            type: string
+            children: null
+          error:
+            type: string
+            children: null
+          verdict:
+            type: string
+            children: null
+          evidence:
+            type: string
+            children: null
+          expected:
+            type: string
+            children: null
+          memory_id:
+            type: string
+            children: null
+          seq:
+            type: number
+            children: null
+          rank_title:
+            type: string
+            children: null
+          rank_note:
+            type: string
+            children: null
+          canon_report:
+            type: string
+            children: null
+          rumour_report:
+            type: string
+            children: null
+          verdict_line:
+            type: string
+            children: null
+          trust_text:
+            type: string
+            children: null
+          pass:
+            type: boolean
+            children: null
+    - id: pass_gate
+      type: custom
+      position:
+        x: 2640
+        y: 480
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: if-else
+        title: ⑩ 勘结是否成立
+        desc: ''
+        selected: false
+        logical_operator: and
+        cases:
+        - case_id: 'true'
+          logical_operator: and
+          conditions:
+          - variable_selector:
+            - verdict
+            - pass
+            comparison_operator: is
+            value: 'true'
+    - id: answer_pass
+      type: custom
+      position:
+        x: 2900
+        y: 380
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: answer
+        title: ⑪ 勘结成立
+        desc: ''
+        selected: false
+        answer: '🏮 **离谱侦探社** · 第 {{#verdict.seq#}} 轮
+
+          档案员老砚：{{#unpack.archivist_line#}}
+
+
+          ### 本次案卷
+
+          **{{#unpack.case_title#}}**
+
+          {{#unpack.briefing#}}
+
+
+          ### 三位侦探的说法
+
+          - **林默（物证派）**：{{#clean.linmo#}}
+
+          - **阿鬼（人心派）**：{{#clean.agui#}}
+
+          - **妙音（风闻派）**：{{#clean.miaoyin#}}
+
+
+          ### 你的指控
+
+          {{#parse.accusation#}}
+
+
+          ### 勘结：✅ 成立
+
+          {{#verdict.verdict_line#}}
+
+
+          **决定性证据**：{{#verdict.evidence#}}
+
+
+          **命中的已勘结事实**：{{#verdict.canon_report#}}
+
+          **踩中的谣言**：{{#verdict.rumour_report#}}
+
+
+          ---
+
+          🧾 **记忆凭证**：PowerContext `{{#verdict.memory_id#}}` · 累计 {{#verdict.seq#}} 轮 · 等级 {{#verdict.rank_title#}}（{{#verdict.rank_note#}}）
+
+          📚 **知识库检索**：本轮回捞 {{#pack.hit_count#}} 条案卷片段（seekdb 向量 + 全文加权融合）
+
+          🎭 **侦探信任度**：{{#verdict.trust_text#}}
+
+          下一步：输入「开场」领下一份案卷，「战绩」看档案，「提示」让档案员给线索。'
+        variables: []
+    - id: answer_fail
+      type: custom
+      position:
+        x: 2900
+        y: 620
+      width: 244
+      height: 120
+      sourcePosition: right
+      targetPosition: left
+      data:
+        type: answer
+        title: ⑫ 勘结被驳回
+        desc: ''
+        selected: false
+        answer: '🏮 **离谱侦探社** · 第 {{#verdict.seq#}} 轮
+
+          档案员老砚：{{#unpack.archivist_line#}}
+
+
+          ### 本次案卷
+
+          **{{#unpack.case_title#}}**
+
+          {{#unpack.briefing#}}
+
+
+          ### 三位侦探的说法
+
+          - **林默（物证派）**：{{#clean.linmo#}}
+
+          - **阿鬼（人心派）**：{{#clean.agui#}}
+
+          - **妙音（风闻派）**：{{#clean.miaoyin#}}
+
+
+          ### 你的指控
+
+          {{#parse.accusation#}}
+
+
+          ### 勘结：❌ 被驳回
+
+          {{#verdict.verdict_line#}}
+
+
+          **案卷里的决定性证据**：{{#verdict.evidence#}}
+
+
+          **可以成立的勘结要点**：{{#verdict.expected#}}
+
+          **你这次踩中的谣言**：{{#verdict.rumour_report#}}
+
+
+          ---
+
+          🧾 **记忆凭证**：PowerContext `{{#verdict.memory_id#}}` · 累计 {{#verdict.seq#}} 轮 · 等级 {{#verdict.rank_title#}}（{{#verdict.rank_note#}}）
+
+          📚 **知识库检索**：本轮回捞 {{#pack.hit_count#}} 条案卷片段（seekdb 向量 + 全文加权融合）
+
+          🎭 **侦探信任度**：{{#verdict.trust_text#}}
+
+          下一步：输入「开场」领下一份案卷，「战绩」看档案，「提示」让档案员给线索。'
+        variables: []
+    edges:
+    - id: start-source-parse
+      source: start
+      sourceHandle: source
+      target: parse
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: code
+    - id: parse-source-open
+      source: parse
+      sourceHandle: source
+      target: open
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+    - id: open-source-unpack
+      source: open
+      sourceHandle: source
+      target: unpack
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+    - id: unpack-source-gate
+      source: unpack
+      sourceHandle: source
+      target: gate
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+    - id: gate-true-kb
+      source: gate
+      sourceHandle: 'true'
+      target: kb
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: knowledge-retrieval
+    - id: gate-false-info
+      source: gate
+      sourceHandle: 'false'
+      target: info
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+    - id: info-source-answer_info
+      source: info
+      sourceHandle: source
+      target: answer_info
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: answer
+    - id: kb-source-pack
+      source: kb
+      sourceHandle: source
+      target: pack
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: code
+    - id: pack-source-linmo
+      source: pack
+      sourceHandle: source
+      target: linmo
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+    - id: pack-source-agui
+      source: pack
+      sourceHandle: source
+      target: agui
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+    - id: pack-source-miaoyin
+      source: pack
+      sourceHandle: source
+      target: miaoyin
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+    - id: linmo-source-clean
+      source: linmo
+      sourceHandle: source
+      target: clean
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+    - id: agui-source-clean
+      source: agui
+      sourceHandle: source
+      target: clean
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+    - id: miaoyin-source-clean
+      source: miaoyin
+      sourceHandle: source
+      target: clean
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+    - id: clean-source-judge
+      source: clean
+      sourceHandle: source
+      target: judge
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+    - id: judge-source-verdict
+      source: judge
+      sourceHandle: source
+      target: verdict
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+    - id: verdict-source-pass_gate
+      source: verdict
+      sourceHandle: source
+      target: pass_gate
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+    - id: pass_gate-true-answer_pass
+      source: pass_gate
+      sourceHandle: 'true'
+      target: answer_pass
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: answer
+    - id: pass_gate-false-answer_fail
+      source: pass_gate
+      sourceHandle: 'false'
+      target: answer_fail
+      targetHandle: target
+      type: custom
+      zIndex: 0
+      data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: answer
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.5

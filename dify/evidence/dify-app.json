@@ -1,0 +1,103 @@
+{
+  "app_id": "8b1e7247-d601-43ac-a7df-1599d6416330",
+  "name": "离谱侦探社",
+  "mode": "advanced-chat",
+  "node_count": 18,
+  "edge_count": 19,
+  "nodes": [
+    {
+      "id": "start",
+      "type": "start",
+      "title": "玩家发言"
+    },
+    {
+      "id": "parse",
+      "type": "code",
+      "title": "① 解析意图"
+    },
+    {
+      "id": "open",
+      "type": "http-request",
+      "title": "② 读记忆并开场"
+    },
+    {
+      "id": "unpack",
+      "type": "code",
+      "title": "③ 拆开场回执"
+    },
+    {
+      "id": "gate",
+      "type": "if-else",
+      "title": "④ 这次是不是指控"
+    },
+    {
+      "id": "info",
+      "type": "code",
+      "title": "④A 组装信息回复"
+    },
+    {
+      "id": "answer_info",
+      "type": "answer",
+      "title": "④B 信息回复"
+    },
+    {
+      "id": "kb",
+      "type": "knowledge-retrieval",
+      "title": "⑤ 检索案卷库（seekdb）"
+    },
+    {
+      "id": "pack",
+      "type": "code",
+      "title": "⑥ 整理检索片段"
+    },
+    {
+      "id": "linmo",
+      "type": "llm",
+      "title": "⑦ 侦探 · 林默"
+    },
+    {
+      "id": "agui",
+      "type": "llm",
+      "title": "⑦ 侦探 · 阿鬼"
+    },
+    {
+      "id": "miaoyin",
+      "type": "llm",
+      "title": "⑦ 侦探 · 妙音"
+    },
+    {
+      "id": "clean",
+      "type": "code",
+      "title": "⑦' 清洗台词"
+    },
+    {
+      "id": "judge",
+      "type": "http-request",
+      "title": "⑧ 判定并写回记忆"
+    },
+    {
+      "id": "verdict",
+      "type": "code",
+      "title": "⑨ 拆判定回执"
+    },
+    {
+      "id": "pass_gate",
+      "type": "if-else",
+      "title": "⑩ 勘结是否成立"
+    },
+    {
+      "id": "answer_pass",
+      "type": "answer",
+      "title": "⑪ 勘结成立"
+    },
+    {
+      "id": "answer_fail",
+      "type": "answer",
+      "title": "⑫ 勘结被驳回"
+    }
+  ],
+  "dataset_id": "d432ad42-3851-495d-ac44-8daa4b145cd7",
+  "environment_variables": [
+    "DETECTIVE_API_KEY"
+  ]
+}

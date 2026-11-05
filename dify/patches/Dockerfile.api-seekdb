@@ -1,0 +1,10 @@
+# 用官方 dify-api 1.10.1 打 seekdb 适配补丁（不重新装依赖，构建只需几秒）
+#
+# 只在 patches/oceanbase_vector.py 里改一处：Dify 1.10.1 的 OceanBase 向量适配器
+# 用 `int(row[6])` 读取 ob_vector_memory_limit_percentage，而 seekdb 1.4.0 的
+# SHOW PARAMETERS 列顺序不同（第 7 列是 scope='CLUSTER'），会抛
+# `invalid literal for int() with base 10: 'CLUSTER'`，导致建表阶段直接失败。
+# 补丁改为按列名取值、取不到再按位置兜底，其它逻辑与官方实现一致。
+FROM langgenius/dify-api:1.10.1
+
+COPY oceanbase_vector.py /app/api/core/rag/datasource/vdb/oceanbase/oceanbase_vector.py

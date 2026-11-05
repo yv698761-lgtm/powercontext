@@ -1,0 +1,20 @@
+# Dify 1.10.1 + seekdb 适配覆盖文件
+#
+# 用法（在 dify-1.10.1/docker 目录或任意目录，指定 -f 顺序即可）：
+#   docker compose \
+#     -p dify-seekdb-kb \
+#     --env-file .env \
+#     -f <dify-src>/docker/docker-compose.yaml \
+#     -f deploy/docker-compose.seekdb.yaml \
+#     up -d
+#
+# 作用：
+# 1. api / worker / worker_beat 换成打了 seekdb 适配补丁的镜像（见 patches/）。
+# 2. 不启动 compose 内置的 oceanbase 服务，改用外部 seekdb 容器。
+services:
+  api:
+    image: langgenius/dify-api:1.10.1-seekdb
+  worker:
+    image: langgenius/dify-api:1.10.1-seekdb
+  worker_beat:
+    image: langgenius/dify-api:1.10.1-seekdb

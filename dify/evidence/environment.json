@@ -1,0 +1,42 @@
+{
+  "captured_at": "2026-11-05 21:34:26",
+  "host": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.16",
+  "docker_images": [
+    "langgenius/dify-api:1.10.1-seekdb 5.98GB",
+    "nginx:latest 243MB",
+    "postgres:15-alpine 417MB",
+    "redis:6-alpine 41.7MB",
+    "mooctest-student-management:1.1 742MB",
+    "oceanbase/seekdb:1.4.0-100000172026082615 819MB",
+    "oceanbase/oceanbase-ce:4.3.5-lts 2.13GB",
+    "langgenius/dify-web:1.10.1 833MB",
+    "langgenius/dify-api:1.10.1 5.98GB",
+    "ubuntu/squid:latest 303MB",
+    "langgenius/dify-plugin-daemon:0.4.1-local 2.13GB",
+    "langgenius/dify-sandbox:0.2.12 825MB",
+    "mysql:8.0.26 682MB"
+  ],
+  "containers": [
+    "dify-seekdb-kb-api-1 Up 11 minutes 5001/tcp",
+    "dify-seekdb-kb-worker-1 Up 11 minutes 5001/tcp",
+    "dify-seekdb-kb-worker_beat-1 Up 11 minutes 5001/tcp",
+    "dify-seekdb Up 21 minutes 0.0.0.0:2886->2881/tcp, [::]:2886->2881/tcp",
+    "dify-seekdb-kb-nginx-1 Up 10 minutes 0.0.0.0:18080->80/tcp, [::]:18080->80/tcp, 0.0.0.0:18443->443/tcp, [::]:18443->443/tcp",
+    "dify-seekdb-kb-plugin_daemon-1 Up 39 minutes 0.0.0.0:5003->5003/tcp, [::]:5003->5003/tcp",
+    "dify-seekdb-kb-web-1 Up 45 minutes 3000/tcp",
+    "dify-seekdb-kb-sandbox-1 Up 45 minutes (healthy) ",
+    "dify-seekdb-kb-db_postgres-1 Up 45 minutes (healthy) 5432/tcp",
+    "dify-seekdb-kb-redis-1 Up 45 minutes (healthy) 6379/tcp",
+    "dify-seekdb-kb-ssrf_proxy-1 Up 8 minutes 3128/tcp",
+    "minimax-context-seekdb Up 4 hours 0.0.0.0:2883->2881/tcp, [::]:2883->2881/tcp",
+    "django-student-management-system_1782964424749-web-1 Up 4 hours 0.0.0.0:8093->8088/tcp, [::]:8093->8088/tcp",
+    "django-student-management-system_1782964424749-db-1 Up 4 hours 0.0.0.0:33070->3306/tcp, [::]:33070->3306/tcp"
+  ],
+  "dify_url": "http://127.0.0.1:18080",
+  "dataset_id": "d432ad42-3851-495d-ac44-8daa4b145cd7",
+  "embedding": {
+    "provider": "langgenius/openai/openai",
+    "model": "bge-small-zh-v1.5"
+  }
+}

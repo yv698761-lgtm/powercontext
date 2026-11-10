@@ -7964,6 +7964,32 @@ OPENAPI_SCHEMA: dict[str, JsonValue] = {
                         "preparation.",
                         "default": False,
                     },
+                    "evidence_selection": {
+                        "type": "boolean",
+                        "description": "Select "
+                        "query-relevant "
+                        "literal "
+                        "Memory "
+                        "fragments "
+                        "with "
+                        "exact "
+                        "source "
+                        "character "
+                        "ranges. "
+                        "Uses "
+                        "the "
+                        "cited "
+                        "JSON "
+                        "envelope "
+                        "and "
+                        "takes "
+                        "precedence "
+                        "over "
+                        "assembly "
+                        "and "
+                        "include_code.",
+                        "default": False,
+                    },
                     "assembly": {"$ref": "#/components/schemas/ContextAssembly"},
                 },
                 "additionalProperties": False,
